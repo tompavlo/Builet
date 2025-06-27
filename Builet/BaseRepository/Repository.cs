@@ -1,0 +1,50 @@
+﻿using System.Linq.Expressions;
+using Builet.Database;
+using Microsoft.EntityFrameworkCore;
+
+namespace Builet.BaseRepository;
+
+public class Repository<TEntity, TKey> : IRepository<TEntity, TKey> where TEntity : class
+{
+    protected readonly AppDbContext _db;
+
+    public Repository(AppDbContext appDbContext)
+    {
+        _db = appDbContext;
+    }
+
+    public async Task<TEntity?> GetAsync(TKey id)
+    {
+        return await _db.Set<TEntity>().FindAsync(id);
+    }
+
+    public async Task<List<TEntity>> GetAllAsync()
+    {
+        return await _db.Set<TEntity>().ToListAsync();
+    }
+
+    public async Task<List<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate)
+    {
+        return await _db.Set<TEntity>().Where(predicate).ToListAsync();
+    }
+
+    public async Task AddAsync(TEntity entity)
+    {
+        await _db.Set<TEntity>().AddAsync(entity);
+    }
+
+    public async Task AddRangeAsync(IEnumerable<TEntity> entities)
+    {
+        await _db.Set<TEntity>().AddRangeAsync(entities);
+    }
+
+    public void Remove(TEntity entity)
+    {
+        _db.Set<TEntity>().Remove(entity);
+    }
+
+    public void RemoveRange(IEnumerable<TEntity> entities)
+    {
+        _db.Set<TEntity>().RemoveRange(entities);
+    }
+}
