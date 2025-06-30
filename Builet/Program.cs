@@ -9,5 +9,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
                       ?? builder.Configuration["DbConnectionString"]));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+
 var app = builder.Build();
 

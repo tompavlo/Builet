@@ -47,4 +47,9 @@ public class Repository<TEntity, TKey> : IRepository<TEntity, TKey> where TEntit
     {
         _db.Set<TEntity>().RemoveRange(entities);
     }
+    
+    public void Update(TEntity entity)
+    {
+       _db.Set<TEntity>().Update(entity);
+    }
 }
