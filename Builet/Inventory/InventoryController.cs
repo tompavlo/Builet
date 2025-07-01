@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Builet.BaseRepository;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Builet.Inventory;
 
@@ -14,7 +15,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpGet("me")]
-    public async Task<IActionResult> GetMyInventory()
+    public async Task<IActionResult> GetMyInventory([FromQuery] PaginationQuery query)
     {
     
         if (!Request.Headers.TryGetValue("X-User-Id", out var userIdString) ||
@@ -24,16 +25,16 @@ public class InventoryController : ControllerBase
             return BadRequest("For testing without auth, provide a valid 'X-User-Id' header.");
         }
 
-        return await GetInventoryByUserId(userId);
+        return await GetInventoryByUserId(userId, query);
     }
     
-    [HttpGet("/api/users/{userId:guid}/inventory")]
-    public async Task<IActionResult> GetInventoryByUserId(Guid userId)
+    [HttpGet("users/{userId:guid}/inventory")] 
+    public async Task<IActionResult> GetInventoryByUserId(Guid userId, [FromQuery] PaginationQuery query) // <-- 4. Accept pagination query
     {
         try
         {
-            var inventory = await _inventoryService.GetAllStocksOfUserAsync(userId);
-            return Ok(inventory);
+            var pagedInventory = await _inventoryService.GetAllStocksOfUserAsync(userId, query);
+            return Ok(pagedInventory);
         }
         catch (Exception ex)
         {

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Builet.BaseRepository;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Builet.Stock;
 
@@ -54,6 +55,20 @@ public class StockController : ControllerBase
         catch (Exception ex)
         {
             return NotFound(new { error = ex.Message });
+        }
+    }
+    
+    [HttpGet]
+    public async Task<IActionResult> GetAllStocks([FromQuery] SortingQuery query)
+    {
+        try
+        {
+            var stocks = await _stockService.GetAllStocksAsync(query);
+            return Ok(stocks);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "An error occurred while fetching stocks." });
         }
     }
 }

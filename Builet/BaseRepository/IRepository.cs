@@ -18,4 +18,17 @@ public interface IRepository<TEntity, TKey> where TEntity : class
     
     void Remove(TEntity entity);
     void RemoveRange(IEnumerable<TEntity> entities);
+    
+    Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate);
+
+    Task<List<TEntity>> GetPagedAsync(
+        int pageNumber,
+        int pageSize,
+        Expression<Func<TEntity, bool>> predicate,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null
+    );
+    
+    Task<List<TEntity>> GetAllAsync(
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null
+    );
 }

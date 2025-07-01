@@ -16,11 +16,9 @@ public class TransactionController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateTransaction([FromBody] CreateTransactionDto dto)
     {
-
         try
         {
             var createdTransaction = await _transactionService.CreateTransactionAsync(dto);
-            // A simple OK response is fine here.
             return Ok(createdTransaction);
         }
         catch (Exception ex)

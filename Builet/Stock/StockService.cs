@@ -51,4 +51,33 @@ public class StockService
             throw new Exception("Stock not found");
         return stock;
     }
+
+    public async Task<List<Stock>> GetAllStocksAsync(SortingQuery query)
+    {
+        Func<IQueryable<Stock>, IOrderedQueryable<Stock>>? orderBy = null;
+
+        switch (query.SortBy.ToLowerInvariant())
+        {
+            case "tickersymbol":
+                orderBy = q => query.SortDirection == SortOrder.Asc
+                    ? q.OrderBy(s => s.TickerSymbol)
+                    : q.OrderByDescending(s => s.TickerSymbol);
+                break;
+
+            case "companyname":
+                orderBy = q => query.SortDirection == SortOrder.Asc
+                    ? q.OrderBy(s => s.CompanyName)
+                    : q.OrderByDescending(s => s.CompanyName);
+                break;
+
+            default:
+                orderBy = q => q.OrderBy(s => s.Id);
+                break;
+        }
+
+        // Call the new repository method with the ordering logic
+        var stocks = await _unitOfWork.StockRepository.GetAllAsync(orderBy);
+
+        return _mapper.Map<List<Stock>>(stocks);
+    }
 }

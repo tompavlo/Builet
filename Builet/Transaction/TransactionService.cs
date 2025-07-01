@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Builet.BaseRepository;
 using Builet.User;
+using Microsoft.EntityFrameworkCore;
 
 namespace Builet.Transaction;
 
@@ -51,17 +52,22 @@ public class TransactionService
 
         walletOfBuyer.Balance -= dto.Quantity * dto.PricePerUnit;
 
-        var walletOfSeller = await _unitOfWork.WalletRepository.GetByUserIdAsync(dto.SellerId);
+        var seller = await _unitOfWork.UserRepository.GetAsync(dto.SellerId);
 
-        walletOfSeller.Balance += dto.PricePerUnit * dto.Quantity;
+        if (seller.Role == Role.User)
+        {
+            var walletOfSeller = await _unitOfWork.WalletRepository.GetByUserIdAsync(dto.SellerId);
 
+            walletOfSeller.Balance += dto.PricePerUnit * dto.Quantity;
+            
+            _unitOfWork.WalletRepository.Update(walletOfSeller);
+            
+        }
         transaction.Quantity -= dto.Quantity;
-
         if (transaction.Quantity == 0) transaction.Status = TransactionStatus.Successful;
         
         _unitOfWork.WalletRepository.Update(walletOfBuyer);
         _unitOfWork.TransactionRepository.Update(transaction);
-        _unitOfWork.WalletRepository.Update(walletOfSeller);
         await _unitOfWork.InventoryRepository.AddAsync(updatedInventory);
 
         await _unitOfWork.SaveAsync();
@@ -69,24 +75,6 @@ public class TransactionService
         return _mapper.Map<TransactionDto>(transaction);
 
     }
-    
-    public async Task DeleteTransactionAsync(long transactionId, Guid currentUserId, Role currentUserRole)
-    {
-        var transaction = await _unitOfWork.TransactionRepository.GetAsync(transactionId);
-    
-        if (transaction == null)
-            throw new Exception($"Transaction with ID {transactionId} not found");
-        
-        if (currentUserRole != Role.Admin && transaction.SellerId != currentUserId)
-            throw new Exception("You do not have permission to delete this transaction");
-
-        if (transaction.Status == TransactionStatus.Successful)
-            throw new Exception("You cannot delete a completed transaction");
-
-        _unitOfWork.TransactionRepository.Remove(transaction);
-        await _unitOfWork.SaveAsync();
-    }
-
     public async Task<TransactionDto> CreateTransactionAsync(CreateTransactionDto dto)
     {
         var seller = await _unitOfWork.UserRepository.GetAsync(dto.SellerId);
@@ -97,7 +85,38 @@ public class TransactionService
 
         if (dto.Quantity <= 0) throw new Exception("Quantity should be higher than 0");
         if (dto.PricePerUnit <= 0) throw new Exception("Price should be higher than 0");
+        
+        if (seller.Role != Role.Admin)
+        {
+            var inventoryEntries = await _unitOfWork.InventoryRepository.FindAsync(
+                inv => inv.UserId == dto.SellerId && inv.StockId == dto.StockId
+            );
+            
+            var totalStockInInventory = inventoryEntries.Sum(inv => inv.Quantity);
+            if (totalStockInInventory < dto.Quantity)
+            {
+                throw new Exception($"Insufficient stock. Required: {dto.Quantity}, Available: {totalStockInInventory}");
+            }
+            
+            var quantityToDeduct = dto.Quantity;
+            
+            foreach (var entry in inventoryEntries.OrderBy(e => e.StockId))
+            {
+                if (quantityToDeduct <= 0) break;
 
+                if (entry.Quantity <= quantityToDeduct)
+                {
+                    quantityToDeduct -= entry.Quantity;
+                    _unitOfWork.InventoryRepository.Remove(entry);
+                }
+                else
+                {
+                    entry.Quantity -= quantityToDeduct;
+                    quantityToDeduct = 0;
+                    _unitOfWork.InventoryRepository.Update(entry);
+                }
+            }
+        }
         var transaction = new Transaction
         {
             SellerId = dto.SellerId,
@@ -109,9 +128,54 @@ public class TransactionService
             Status = TransactionStatus.Open,
             CreatedAt = DateTime.UtcNow
         };
-
+        
         await _unitOfWork.TransactionRepository.AddAsync(transaction);
         await _unitOfWork.SaveAsync();
+        
         return _mapper.Map<TransactionDto>(transaction);
+    }
+    
+    public async Task DeleteTransactionAsync(long transactionId, Guid currentUserId, Role currentUserRole)
+    {
+        var transaction = (await _unitOfWork.TransactionRepository.FindAsync(
+            predicate: t => t.Id == transactionId,
+            include: q => q.Include(t => t.Seller)
+        )).FirstOrDefault();
+        
+        if (transaction == null)
+            throw new Exception($"Transaction with ID {transactionId} not found");
+
+        if (currentUserRole != Role.Admin && transaction.SellerId != currentUserId)
+            throw new Exception("You do not have permission to delete this transaction");
+
+        if (transaction.Status == TransactionStatus.Successful)
+            throw new Exception("You cannot delete a completed transaction");
+        
+        if (transaction.Seller.Role != Role.Admin)
+        {
+            var inventoryEntry = (await _unitOfWork.InventoryRepository.FindAsync(
+                inv => inv.UserId == transaction.SellerId && inv.StockId == transaction.StockId
+            )).FirstOrDefault();
+
+            if (inventoryEntry != null)
+            {
+                inventoryEntry.Quantity += transaction.Quantity;
+                _unitOfWork.InventoryRepository.Update(inventoryEntry);
+            }
+            else
+            {
+                var newInventoryEntry = new Inventory.Inventory
+                {
+                    UserId = transaction.SellerId,
+                    StockId = transaction.StockId,
+                    Quantity = transaction.Quantity
+                };
+                await _unitOfWork.InventoryRepository.AddAsync(newInventoryEntry);
+            }
+        }
+        
+        _unitOfWork.TransactionRepository.Remove(transaction);
+        
+        await _unitOfWork.SaveAsync();
     }
 }
