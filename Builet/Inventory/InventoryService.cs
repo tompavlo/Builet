@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Builet.BaseRepository;
+using Microsoft.EntityFrameworkCore;
 
 namespace Builet.Inventory;
 
@@ -14,13 +15,16 @@ public class InventoryService
         _mapper = mapper;
     }
 
-    public async Task<List<Inventory>> GetAllStocksOfUserAsync(Guid userId)
+    public async Task<List<InventoryDto>> GetAllStocksOfUserAsync(Guid userId)
     {
         var user = await _unitOfWork.UserRepository.GetAsync(userId);
-        if (user == null) throw new Exception("No such user");
-
-        return await _unitOfWork.InventoryRepository.FindAsync(inv => inv.UserId == userId);
+        if (user == null) throw new Exception("No such user found");
+        
+        var inventoryEntities = await _unitOfWork.InventoryRepository.FindAsync(
+            predicate: inv => inv.UserId == userId,
+            include: query => query.Include(inv => inv.Stock)
+        );
+        return _mapper.Map<List<InventoryDto>>(inventoryEntities);
     }
-    
     
 }

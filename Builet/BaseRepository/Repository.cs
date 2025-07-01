@@ -23,10 +23,20 @@ public class Repository<TEntity, TKey> : IRepository<TEntity, TKey> where TEntit
         return await _db.Set<TEntity>().ToListAsync();
     }
 
-    public async Task<List<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate)
+    public async Task<List<TEntity>> FindAsync(
+        Expression<Func<TEntity, bool>> predicate,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null)
     {
-        return await _db.Set<TEntity>().Where(predicate).ToListAsync();
+        IQueryable<TEntity> query = _db.Set<TEntity>();
+
+        if (include != null)
+        {
+            query = include(query);
+        }
+
+        return await query.Where(predicate).ToListAsync();
     }
+
 
     public async Task AddAsync(TEntity entity)
     {

@@ -1,7 +1,10 @@
-﻿namespace Builet.Transaction;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Builet.Transaction;
 
 public class TransactionDto
 {
+    [Required(ErrorMessage = "Transaction Id is required to perform a purchase.")]
     public long Id { get; set; }
 
     public Guid SellerId { get; set; }

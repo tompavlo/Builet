@@ -38,8 +38,8 @@ public class TransactionService
 
         if (transaction.Quantity < dto.Quantity) throw new Exception("Too much stocks wanted to buy");
 
-        var wallet = await _unitOfWork.WalletRepository.GetByUserIdAsync(buyer.Id);
-        if (dto.Quantity * dto.PricePerUnit > wallet.Balance) throw new Exception("Not enough money");
+        var walletOfBuyer = await _unitOfWork.WalletRepository.GetByUserIdAsync(buyer.Id);
+        if (dto.Quantity * dto.PricePerUnit > walletOfBuyer.Balance) throw new Exception("Not enough money");
         var updatedInventory = new Inventory.Inventory
         {
             Quantity = dto.Quantity,
@@ -49,14 +49,19 @@ public class TransactionService
             UserId = dto.BuyerId.Value
         };
 
-        wallet.Balance -= dto.Quantity * dto.PricePerUnit;
+        walletOfBuyer.Balance -= dto.Quantity * dto.PricePerUnit;
+
+        var walletOfSeller = await _unitOfWork.WalletRepository.GetByUserIdAsync(dto.SellerId);
+
+        walletOfSeller.Balance += dto.PricePerUnit * dto.Quantity;
 
         transaction.Quantity -= dto.Quantity;
 
         if (transaction.Quantity == 0) transaction.Status = TransactionStatus.Successful;
         
-        _unitOfWork.WalletRepository.Update(wallet);
+        _unitOfWork.WalletRepository.Update(walletOfBuyer);
         _unitOfWork.TransactionRepository.Update(transaction);
+        _unitOfWork.WalletRepository.Update(walletOfSeller);
         await _unitOfWork.InventoryRepository.AddAsync(updatedInventory);
 
         await _unitOfWork.SaveAsync();
@@ -106,6 +111,7 @@ public class TransactionService
         };
 
         await _unitOfWork.TransactionRepository.AddAsync(transaction);
+        await _unitOfWork.SaveAsync();
         return _mapper.Map<TransactionDto>(transaction);
     }
 }

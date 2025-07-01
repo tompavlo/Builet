@@ -25,6 +25,7 @@ public class UserService
 
         var user = _mapper.Map<User>(dto);
         user.Id = Guid.NewGuid();
+        user.Role = Role.User;
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
@@ -41,8 +42,20 @@ public class UserService
         await _unitOfWork.WalletRepository.AddAsync(wallet);
         await _unitOfWork.SaveAsync();
 
-        return _mapper.Map<UserDto>(dto);
+        return _mapper.Map<UserDto>(user);
     } 
+    
+    public async Task<UserDto> GetUserByIdentifierAsync(string identifier)
+    {
+        var user = (await _unitOfWork.UserRepository
+                .FindAsync(u => u.Username == identifier || u.Email == identifier))
+            .FirstOrDefault();
+
+        if (user == null)
+            throw new Exception($"User with identifier '{identifier}' not found");
+
+        return _mapper.Map<UserDto>(user);
+    }
     
     public async Task<UserDto> GetUserByIdAsync(Guid id)
     {
