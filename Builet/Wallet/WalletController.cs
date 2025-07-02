@@ -32,7 +32,7 @@ public class WalletController : ControllerBase
     {
         try
         {
-            await _walletService.AddFundsSync(userId, amount);
+            await _walletService.AddFundsASync(userId, amount);
             return NoContent();
         }
         catch (Exception ex)

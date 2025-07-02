@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
+using Builet.Authentication;
 using Builet.Stock;
 using Microsoft.Win32.SafeHandles;
 
 namespace Builet.User;
 using Builet.BaseRepository;
+using BCrypt.Net;
 
 public class UserService 
 {
@@ -27,7 +29,7 @@ public class UserService
         user.Id = Guid.NewGuid();
         user.Role = Role.User;
 
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+        user.PasswordHash = BCrypt.HashPassword(dto.Password);
 
         await _unitOfWork.UserRepository.AddAsync(user);
         await _unitOfWork.SaveAsync();
@@ -45,6 +47,19 @@ public class UserService
         return _mapper.Map<UserDto>(user);
     } 
     
+    public async Task<User> LoginAsync(LoginDto loginDto)
+    {
+        var user = (await _unitOfWork.UserRepository
+                .FindAsync(u => u.Username == loginDto.UsernameOrEmail || u.Email == loginDto.UsernameOrEmail))
+            .FirstOrDefault();
+
+        if (user == null || !BCrypt.Verify(loginDto.Password, user.PasswordHash))
+        {
+            throw new Exception("Invalid username/email or password");
+        }
+
+        return user;
+    }
     public async Task<UserDto> GetUserByIdentifierAsync(string identifier)
     {
         var user = (await _unitOfWork.UserRepository

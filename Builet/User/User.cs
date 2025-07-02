@@ -11,6 +11,10 @@ public class User
     public string Email { get; set; } 
     public Role Role { get; set; }
     
+    public string? RefreshToken { get; set; }
+    
+    public DateTime RefreshTokenExpiryTime { get; set; }
+    
     public ICollection<Inventory.Inventory> Inventory { get; set; } = new List<Inventory.Inventory>();
     
     public ICollection<Transaction.Transaction> TransactionsAsSeller { get; set; } = new List<Transaction.Transaction>();

@@ -1,6 +1,7 @@
 ﻿using System.Xml;
 using AutoMapper;
 using Builet.BaseRepository;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Builet.Stock;
 
@@ -14,7 +15,8 @@ public class StockService
         _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
-
+    
+    [Authorize(Roles = "Admin")] 
     public async Task<Stock> CreateStockAsync(CreateStockDto dto)
     {
         var stockExist = await _unitOfWork.StockRepository.FindAsync(stck => stck.TickerSymbol == dto.TickerSymbol
@@ -33,7 +35,8 @@ public class StockService
 
         return stock;
     }
-
+    
+    [Authorize(Roles = "Admin")] 
     public async Task DeleteStockAsync(long stockId)
     {
         var stock = await _unitOfWork.StockRepository.GetAsync(stockId);
@@ -74,8 +77,7 @@ public class StockService
                 orderBy = q => q.OrderBy(s => s.Id);
                 break;
         }
-
-        // Call the new repository method with the ordering logic
+        
         var stocks = await _unitOfWork.StockRepository.GetAllAsync(orderBy);
 
         return _mapper.Map<List<Stock>>(stocks);

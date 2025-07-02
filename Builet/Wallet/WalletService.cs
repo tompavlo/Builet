@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Builet.BaseRepository;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Builet.Wallet;
 
@@ -22,7 +23,8 @@ public class WalletService
         return _mapper.Map<WalletDto>(wallet);
     }
 
-    public async Task AddFundsSync(Guid userId, decimal amount)
+    [Authorize(Roles = "Admin")] 
+    public async Task AddFundsASync(Guid userId, decimal amount)
     {
         var wallet = await _unitOfWork.WalletRepository.GetByUserIdAsync(userId);
         if (wallet == null) throw new Exception("Wallet not found");
@@ -31,7 +33,7 @@ public class WalletService
 
         await _unitOfWork.SaveAsync();
     }
-
+    [Authorize(Roles = "Admin")] 
     public async Task WithdrawFundsAsync(Guid userId, decimal amount)
     {
         var wallet = await _unitOfWork.WalletRepository.GetByUserIdAsync(userId);
